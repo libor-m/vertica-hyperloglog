@@ -5,13 +5,13 @@ Summary:        HyperLogLog UDF for Vertica
 
 License:        GPLv2+
 URL:            https://gitlab.criteois.com/vertica/vertica-udfs
-Source0:        https://gitlab.criteois.com/vertica/vertica-udfs/repository/archive.tar.gz
+
 BuildRoot:      %{_tmppath}/%{name}-%{version}
 
 BuildRequires:  gcc-c++
-BuildRequires:  make
-BuildRequires:  cmake
-BuildRequires:  vertica
+BuildRequires: make
+BuildRequires: cmake
+# BuildRequires: vertica # we remove vertica and instead we use a dirty hack in the build
 Requires:       vertica
 
 %description
@@ -21,12 +21,12 @@ For complete documentation, see the project home page on GitHub.
 %setup -q
 
 %build
-%cmake -DSDK_HOME='/opt/vertica/sdk' .
-make %{?_smp_mflags}
+wget http://filer.criteo.prod/remote_files/vertica-central/vertica-7.2.3-13.x86_64.RHEL6.rpm
+/usr/bin/mock -r mock.cfg --no-clean --installdeps  vertica-hyperloglog-0.1-1.el7.src.rpm
 
-%install
-rm -rf $RPM_BUILD_ROOT
-%make_install
+
+cmake -DSDK_HOME='/opt/vertica/sdk' .
+make %{?_smp_mflags}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
