@@ -31,13 +31,14 @@ class BiasCorrectionTest : public ::testing::Test {
     data_file.close();
   }
 
-  void generateNumbers(std::set<uint64_t>& s, uint32_t cardinality) {
-    std::srand(0);
-    for(uint32_t i=s.size(); i < cardinality; ++i)
-      s.insert(std::rand());
-    while(s.size() < cardinality)
-      s.insert(std::rand());
-  }
+  void generateNumbers(std::set<uint64_t>& s, uint32_t cardinality) {           
+      std::srand(0);                                                              
+      while(s.size() < cardinality) {                                             
+          uint64_t missing = cardinality - s.size();                              
+          for(uint32_t i=0; i < missing; ++i)                                     
+              s.insert(std::rand());                                              
+      }                                                                       
+  }  
 
 };
 
@@ -48,35 +49,48 @@ class BiasCorrectionTest : public ::testing::Test {
  * to be closer to the actual cardinality than the raw HLL estimate.
  */
 TEST_F(BiasCorrectionTest, TestBiasCorrectionGivesBetterEstimateThanRawHLL) {
-  const uint8_t MIN_SUPPORTED_PRECISION = 4;
+  const uint8_t MIN_SUPPORTED_PRECISION = 6;
   const uint8_t MAX_SUPPORTED_PRECISION = 18;
 
+
+  std::set<uint64_t> ids;
+  uint32_t maxCardinality = 5 * (1 << MAX_SUPPORTED_PRECISION);
+  generateNumbers(ids, maxCardinality);
   for(uint8_t precision = MIN_SUPPORTED_PRECISION;
               precision <= MAX_SUPPORTED_PRECISION;
               ++precision) {
     HllRaw<uint64_t> hll(precision);
-    std::set<uint64_t> ids;
     uint32_t biasCorrectionThreshold = 5 * (1 << precision);
 
+    uint8_t rawBetter = 0;
+    uint8_t biasBetter = 0;
     /**
      * For every precision we look at the the bias correction threshold
      * and generate input numbers accordingly. We use fractions of that
      * threshold and for each of them we make sure the bias correction makes
      * the estimate more reliable.
      */
-    for(double frac: {1./5, 2./5, 3./5, 4./5}) {
+    for(double frac: {2./5, 2.5/5, 3./5, 3.5/5, 4./5}) {
       uint32_t realCardinality = biasCorrectionThreshold*frac;
-      generateNumbers(ids, realCardinality);
+        
+      auto it=ids.begin();
+      for(uint32_t idx=0; idx< realCardinality; ++idx, ++it) {
+        hll.add(*it);
+      }
 
       int32_t hllCardinality = static_cast<int32_t>(hll.estimate());
       int32_t biasCorrectedCardinality =
         static_cast<int32_t>(BiasCorrectedEstimate::estimate(hllCardinality, precision));
 
       uint32_t hllError = abs(hllCardinality - realCardinality);
-      uint32_t biasCorrectedError = abs(biasCorrectedCardinality - realCardinality);
+      uint32_t biasCorrectedError = abs(biasCorrectedCardinality - static_cast<int32_t>(realCardinality));
 
-      ASSERT_LT(biasCorrectedError, hllError);
+      if(biasCorrectedError < hllError)
+          biasBetter++;
+      else if(hllError < biasCorrectedError)
+          rawBetter++;
     }
+    EXPECT_GT(biasBetter, rawBetter);
   }
 }
 
