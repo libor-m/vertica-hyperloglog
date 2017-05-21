@@ -4,6 +4,7 @@
 #include <iterator>
 #include <iostream>
 #include <utility>
+#include <cmath>
 #include "linear_counting.hpp"
 
 

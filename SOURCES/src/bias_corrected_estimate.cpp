@@ -2,6 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include "bias_corrected_estimate.hpp"
 
 
